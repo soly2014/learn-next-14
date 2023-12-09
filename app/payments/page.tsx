@@ -1,14 +1,34 @@
 "use client";
 
 import {
-	AtSymbolIcon,
 	KeyIcon,
 	CalendarDaysIcon,
 	UserIcon,
 	CreditCardIcon,
+	ArrowRightIcon,
 } from "@heroicons/react/24/outline";
 import * as React from "react";
 import Cards, { ReactCreditCardsProps, Focused } from "./credit-card/index";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "../ui/button";
+
+const cardDetailsSchema = z.object({
+	name: z
+		.string()
+		.min(2, { message: "Name should be at least 2 characters long" }),
+	cvc: z.string().refine((cvc) => /^[0-9]{3,4}$/.test(cvc), {
+		message: "CVC should be a 3 or 4-digit number",
+	}),
+	expiry: z.string().refine(
+		(expiry) => /^[0-9]{2}\/[0-9]{2}$/.test(expiry), // Validate "mm/yy" format
+		{ message: "Expiry should be in the format 'mm/yy'" }
+	),
+	number: z.string().refine((number) => /^[0-9\s]+$/.test(number), {
+		message: "Card number should only contain numbers and spaces",
+	}),
+});
 
 type CardData = Pick<
 	ReactCreditCardsProps,
@@ -23,6 +43,16 @@ const Payments: React.FunctionComponent = () => {
 		name: "",
 		focused: "",
 	});
+	const {
+		register,
+		handleSubmit,
+		watch,
+		formState: { errors, isSubmitting },
+	} = useForm<CardData>({
+		resolver: zodResolver(cardDetailsSchema),
+	});
+
+	const onSubmit: SubmitHandler<CardData> = (data) => console.log(data);
 
 	const handleInputChange = (evt: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = evt.target;
@@ -37,7 +67,10 @@ const Payments: React.FunctionComponent = () => {
 		<div className="bg-gray-200 h-full p-[2rem]">
 			<div className="flex">
 				<div className="flex space-x-4 basis-6/12">
-					<form className="flex-grow-1 w-[100%]">
+					<form
+						onSubmit={handleSubmit(onSubmit)}
+						className="flex-grow-1 w-[100%]"
+					>
 						<div>
 							<label
 								className="mb-3 mt-5 block text-xs font-medium text-gray-900"
@@ -50,15 +83,20 @@ const Payments: React.FunctionComponent = () => {
 									className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
 									id="CardNumber"
 									type="number"
-									name="number"
 									placeholder="Card Number"
-									value={state.number}
-									onChange={handleInputChange}
 									onFocus={handleInputFocus}
-									required
+									{...register("number")}
 								/>
 								<CreditCardIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
 							</div>
+							{errors.number && (
+								<div
+									className="mt-1 text-sm text-red-600 rounded-lg"
+									role="alert"
+								>
+									{errors.number?.message}
+								</div>
+							)}
 						</div>
 						<div className="mt-4">
 							<label
@@ -71,16 +109,24 @@ const Payments: React.FunctionComponent = () => {
 								<input
 									className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
 									id="ExpiryDate"
-									type="date"
-									name="expiry"
+									type="month"
+									value="2023-01"
+									min="yyyy-MM"
+									max="yyyy-MM"
 									placeholder="Expiry Date"
-									value={state.expiry}
-									onChange={handleInputChange}
 									onFocus={handleInputFocus}
-									required
+									{...register("expiry")}
 								/>
 								<CalendarDaysIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
 							</div>
+							{errors.expiry && (
+								<div
+									className="mt-1 text-sm text-red-600 rounded-lg"
+									role="alert"
+								>
+									{errors.expiry?.message}
+								</div>
+							)}
 						</div>
 
 						<div className="mt-4">
@@ -94,15 +140,20 @@ const Payments: React.FunctionComponent = () => {
 								<input
 									className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
 									id="CardHolderName"
-									name="name"
-									value={state.name}
-									onChange={handleInputChange}
 									onFocus={handleInputFocus}
 									placeholder="Enter Card Holder Name"
-									required
+									{...register("name")}
 								/>
 								<UserIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
 							</div>
+							{errors.name && (
+								<div
+									className="mt-1 text-sm text-red-600 rounded-lg"
+									role="alert"
+								>
+									{errors.name?.message}
+								</div>
+							)}
 						</div>
 
 						<div className="mt-4">
@@ -117,16 +168,25 @@ const Payments: React.FunctionComponent = () => {
 									className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
 									id="CVV"
 									type="number"
-									name="cvc"
-									value={state.cvc}
-									onChange={handleInputChange}
+									{...register("cvc")}
 									onFocus={handleInputFocus}
 									placeholder="Enter CVV"
-									required
 								/>
 								<KeyIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
 							</div>
+							{errors.cvc && (
+								<div
+									className="mt-1 text-sm text-red-600 rounded-lg"
+									role="alert"
+								>
+									{errors.cvc?.message}
+								</div>
+							)}
 						</div>
+						<Button type="submit" className="mt-9 w-full">
+							Validate
+							<ArrowRightIcon className="ml-auto h-5 w-5 text-gray-50" />
+						</Button>
 					</form>
 				</div>
 				<div className="flex self-center basis-6/12 flex-grow-1">
