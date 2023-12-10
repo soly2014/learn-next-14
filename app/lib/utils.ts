@@ -73,3 +73,16 @@ export const generatePagination = (currentPage: number, totalPages: number) => {
 		totalPages,
 	];
 };
+
+export function convertDateFormat(dateStr: string): string {
+	if (dateStr) {
+		const year = dateStr.substring(0, 4);
+		const month = dateStr.substring(5, 7);
+		return `${month}/${year.substring(2)}`;
+	}
+	return "";
+}
+
+export function sleep(time: number) {
+	return new Promise((resolve) => setTimeout(resolve, time));
+}

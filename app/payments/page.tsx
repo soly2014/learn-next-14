@@ -1,5 +1,4 @@
 "use client";
-
 import {
 	KeyIcon,
 	CalendarDaysIcon,
@@ -13,6 +12,10 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "../ui/button";
+import { convertDateFormat, sleep } from "../lib/utils";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
+import toast, { Toaster } from "react-hot-toast";
 
 const cardDetailsSchema = z.object({
 	name: z
@@ -21,10 +24,7 @@ const cardDetailsSchema = z.object({
 	cvc: z.string().refine((cvc) => /^[0-9]{3,4}$/.test(cvc), {
 		message: "CVC should be a 3 or 4-digit number",
 	}),
-	expiry: z.string().refine(
-		(expiry) => /^[0-9]{2}\/[0-9]{2}$/.test(expiry), // Validate "mm/yy" format
-		{ message: "Expiry should be in the format 'mm/yy'" }
-	),
+	expiry: z.string().min(1, { message: "Expiry date is required" }),
 	number: z.string().refine((number) => /^[0-9\s]+$/.test(number), {
 		message: "Card number should only contain numbers and spaces",
 	}),
@@ -51,12 +51,38 @@ const Payments: React.FunctionComponent = () => {
 	} = useForm<CardData>({
 		resolver: zodResolver(cardDetailsSchema),
 	});
+	const addPayment = useMutation<CardData, any, any>({
+		mutationFn: async () => {
+			await sleep(2000);
+			return axios.post("/api/payments");
+		},
+	});
 
-	const onSubmit: SubmitHandler<CardData> = (data) => console.log(data);
+	// Update state when form values change
+	// Watch form field values
+	const subscription = watch((value, { name, type }) => {
+		// Handle form value changes
+		if (name) {
+			setState((prevState) => ({
+				...prevState,
+				[name]:
+					name == "expiry"
+						? convertDateFormat(value[name] as string)
+						: value[name],
+			}));
+		}
+	});
 
-	const handleInputChange = (evt: React.ChangeEvent<HTMLInputElement>) => {
-		const { name, value } = evt.target;
-		setState((prev) => ({ ...prev, [name]: value }));
+	// Cleanup subscription on unmount
+	React.useEffect(() => {
+		return () => subscription.unsubscribe();
+	}, [subscription]);
+
+	const onSubmit: SubmitHandler<CardData> = (data) => {
+		addPayment.mutate(data, {
+			onError: () => toast.error("Error In Network, Please Try Again"),
+			onSuccess: () => toast.success("Success Payment, Thanks"),
+		});
 	};
 
 	const handleInputFocus = (evt: React.FocusEvent<HTMLInputElement>) => {
@@ -65,8 +91,11 @@ const Payments: React.FunctionComponent = () => {
 
 	return (
 		<div className="bg-gray-200 h-full p-[2rem]">
-			<div className="flex">
-				<div className="flex space-x-4 basis-6/12">
+			<div>
+				<Toaster />
+			</div>
+			<div className="flex flex-col gap-4 lg:flex-row">
+				<div className="flex sm:order-2 lg:order-1 space-x-4 basis-6/12">
 					<form
 						onSubmit={handleSubmit(onSubmit)}
 						className="flex-grow-1 w-[100%]"
@@ -110,7 +139,6 @@ const Payments: React.FunctionComponent = () => {
 									className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
 									id="ExpiryDate"
 									type="month"
-									value="2023-01"
 									min="yyyy-MM"
 									max="yyyy-MM"
 									placeholder="Expiry Date"
@@ -184,12 +212,12 @@ const Payments: React.FunctionComponent = () => {
 							)}
 						</div>
 						<Button type="submit" className="mt-9 w-full">
-							Validate
+							{addPayment.isPending ? "Loading..." : "Make Payment"}
 							<ArrowRightIcon className="ml-auto h-5 w-5 text-gray-50" />
 						</Button>
 					</form>
 				</div>
-				<div className="flex self-center basis-6/12 flex-grow-1">
+				<div className="flex sm:order-1 lg:order-2 self-center basis-6/12 flex-grow-1">
 					<Cards
 						number={state.number}
 						expiry={state.expiry}
